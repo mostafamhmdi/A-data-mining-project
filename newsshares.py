@@ -1,11 +1,16 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error as mse
-from sklearn.metrics import root_mean_squared_error as rmse
 from scipy.stats import zscore
+
+
+def rmse(y_true, y_pred):
+    return np.sqrt(mse(y_true, y_pred))
 
 
 def preprocess_news(df):
@@ -61,7 +66,7 @@ def news_model(data, testsSize):
     scaler = MinMaxScaler()
     X_scaled = scaler.fit_transform(X)
     X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=0.2, random_state=42)
+        X_scaled, y, test_size=testsSize, random_state=42)
     LR = LinearRegression()
     LR.fit(X_train, y_train)
     y_pred_log = LR.predict(X_test)
@@ -69,13 +74,38 @@ def news_model(data, testsSize):
     y_pred = np.expm1(y_pred_log)
     y_test_unlog = np.expm1(y_test)
 
-    print("Mean Squared Error (MSE):", mse(y_test, y_pred_log))
-    print("Mean Squared Error (MSE):", mse(y_test_unlog, y_pred))
+    mse_log = mse(y_test, y_pred_log)
+    mse_unlog = mse(y_test_unlog, y_pred)
+    rmse_log = rmse(y_test, y_pred_log)
+    rmse_unlog = rmse(y_test_unlog, y_pred)
+
+    fig, ax = plt.subplots(2, 1, figsize=(12, 12))
+
+    feature_importances = LR.coef_
+    feature_names = X.columns
+    ax[0].bar(feature_names, feature_importances)
+    ax[0].set_title('Feature Importances')
+    ax[0].set_xlabel('Feature')
+    ax[0].set_ylabel('Importance')
+    ax[0].tick_params(axis='x', rotation=90)
+
+    result_text = (
+        f"Mean Squared Error (MSE) on log scale: {mse_log:.2f}\n"
+        f"Mean Squared Error (MSE) on original scale: {mse_unlog:.2f}\n"
+        f"Root Mean Squared Error (RMSE) on log scale: {rmse_log:.2f}\n"
+        f"Root Mean Squared Error (RMSE) on original scale: {rmse_unlog:.2f}\n"
+    )
+
+    ax[1].axis('off')
+    ax[1].text(0.5, 0.5, result_text, ha='center', va='center', fontsize=12)
+
+    plt.tight_layout()
+    plt.show()
 
 
-def run_news():
+def run_news(testsize):
     df = pd.read_csv('DATA/news-popularity/OnlineNewsPopularity.csv')
 
     data = preprocess_news(df)
 
-    news_model(data)
+    news_model(data, testsSize=testsize)
