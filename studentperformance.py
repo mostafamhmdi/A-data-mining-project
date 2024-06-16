@@ -1,10 +1,15 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error as mse
-from sklearn.metrics import root_mean_squared_error as rmse
+
+
+def rmse(y_true, y_pred):
+    return np.sqrt(mse(y_true, y_pred))
+
 
 def preprocess_students(data):
     data['school'] = data['school'].map({'GP': 0, 'MS': 1})
@@ -31,7 +36,7 @@ def student_model(data, testsSize):
     y = data['G3']
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42)
+        X, y, test_size=testsSize, random_state=42)
 
     selected_features = []
     remaining_features = list(range(X_train.shape[1]))
@@ -57,8 +62,7 @@ def student_model(data, testsSize):
             selected_features.append(best_new_feature)
             remaining_features.remove(best_new_feature)
             best_score = best_new_score
-            print(
-                f"Selected feature: {feature_names[best_new_feature]}, Cross-validated score: {best_new_score:.4f}")
+
         else:
             break
 
@@ -67,22 +71,40 @@ def student_model(data, testsSize):
     final_LR = LinearRegression()
     final_LR.fit(X_train_selected, y_train)
 
-    test_score = final_LR.score(X_test_selected, y_test)
-
-    print(
-        f"Final selected features: {[feature_names[i] for i in selected_features]}")
-    
     pred = final_LR.predict(X_test_selected)
-    print("MSE:    ",mse(y_test, pred))
-    print("RMSE:    ",rmse(y_test, pred))
-    print("R2Score:    ",r2_score(y_test, pred))
-    
+    mse_value = mse(y_test, pred)
+    rmse_value = rmse(y_test, pred)
+    r2_value = r2_score(y_test, pred)
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+
+    feature_importances = final_LR.coef_
+    ax[0].bar([feature_names[i]
+              for i in selected_features], feature_importances)
+
+    ax[0].set_title('Feature Importances')
+    ax[0].set_xlabel('Feature')
+    ax[0].set_ylabel('Importance')
+    ax[0].tick_params(axis='x', rotation=90)
+
+    result_text = (
+        f"Final selected features: {[feature_names[i] for i in selected_features]}\n"
+        f"MSE: {mse_value:.2f}\n"
+        f"RMSE: {rmse_value:.2f}\n"
+        f"R2 Score: {r2_value:.2f}\n"
+    )
+
+    ax[1].axis('off')
+    ax[1].text(0.5, 0.5, result_text, ha='center', va='center', fontsize=12)
+
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.show()
 
 
-def run_student():
-    df = pd.read_csv('DATA/student-performance/student.csv')
+def run_student(testsize):
+    df = pd.read_csv(r'DATA/student-performance/students.csv')
 
     data = preprocess_students(df)
 
-    student_model(data)
-s
+    student_model(data, testsSize=testsize)
